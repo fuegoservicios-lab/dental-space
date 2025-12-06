@@ -12,7 +12,8 @@ import {
   FileText,
   Ban,
   Calendar,
-  Clock
+  Clock,
+  LogOut // <--- NUEVO ICONO IMPORTADO
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN ---
@@ -90,7 +91,10 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-export default function DentalSpaceDashboard() {
+// --- COMPONENTE PRINCIPAL ---
+// Aceptamos la prop "onLogout" para manejar el cierre de sesión
+export default function DentalSpaceDashboard({ onLogout }) {
+  
   // --- ESTADOS ---
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -358,6 +362,15 @@ export default function DentalSpaceDashboard() {
                 >
                     <div className={`w-2 h-2 rounded-full ${botActive ? 'bg-green-500 animate-pulse' : 'bg-red-400'}`}></div>
                     {botActive ? 'IA ON' : 'IA PAUSA'}
+                </button>
+
+                {/* BOTÓN DE CERRAR SESIÓN */}
+                <button 
+                    onClick={onLogout}
+                    className="p-2 ml-1 md:ml-2 bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-600 rounded-full transition-colors border border-transparent hover:border-red-200"
+                    title="Cerrar Sesión"
+                >
+                    <LogOut size={18} />
                 </button>
             </div>
         </div>
