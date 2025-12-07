@@ -1,28 +1,30 @@
+// src/App.jsx
 import React, { useState } from 'react';
 import DentalSpaceDashboard from './DentalDashboard';
 import Login from './Login';
 
 function App() {
-  // SOLUCIÓN: "Lazy Initialization"
-  // En lugar de usar useEffect, leemos el localStorage directamente dentro de useState.
-  // Esto elimina el error y hace que la carga sea instantánea.
+  // --- ACTUALIZADO ---
+  // Ahora revisamos AMBOS almacenamientos al iniciar
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const savedAuth = localStorage.getItem('dental_auth');
-    return savedAuth === 'true';
+    const localAuth = localStorage.getItem('dental_auth');
+    const sessionAuth = sessionStorage.getItem('dental_auth');
+    
+    // Si existe en cualquiera de los dos, dejamos pasar
+    return localAuth === 'true' || sessionAuth === 'true';
   });
 
-  // Función para cerrar sesión
+  // Función para cerrar sesión (Limpiamos TODO para asegurar que salga)
   const handleLogout = () => {
     localStorage.removeItem('dental_auth');
+    sessionStorage.removeItem('dental_auth');
     setIsAuthenticated(false);
   };
 
-  // Si NO está autenticado, mostramos el Login
   if (!isAuthenticated) {
     return <Login onLogin={() => setIsAuthenticated(true)} />;
   }
 
-  // Si SÍ está autenticado, mostramos el Dashboard
   return (
     <DentalSpaceDashboard onLogout={handleLogout} />
   );

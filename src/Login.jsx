@@ -1,25 +1,32 @@
 // src/Login.jsx
 import React, { useState } from 'react';
-import { User, Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { User, Lock, ArrowRight, AlertCircle, CheckSquare } from 'lucide-react';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  
+  // Nuevo estado para el checkbox (por defecto marcado para comodidad)
+  const [rememberMe, setRememberMe] = useState(true);
 
-  // --- CONFIGURA AQUÍ TUS CREDENCIALES ---
+  // --- CREDENCIALES ---
   const ADMIN_EMAIL = "admin@dentalspace.com";
   const ADMIN_PASS = "dental2025"; 
-  // ---------------------------------------
+  // --------------------
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
 
     if (email === ADMIN_EMAIL && password === ADMIN_PASS) {
-      // Guardamos la "sesión" en el navegador
-      localStorage.setItem('dental_auth', 'true');
-      onLogin(); // Avisamos a App.jsx que entramos
+      // LOGICA DE "MANTENER SESIÓN"
+      if (rememberMe) {
+        localStorage.setItem('dental_auth', 'true');   // Persistente (No se borra)
+      } else {
+        sessionStorage.setItem('dental_auth', 'true'); // Temporal (Se borra al cerrar)
+      }
+      onLogin();
     } else {
       setError('Credenciales incorrectas');
     }
@@ -29,7 +36,7 @@ export default function Login({ onLogin }) {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
         
-        {/* Header con Logo */}
+        {/* Header */}
         <div className="bg-blue-600 p-8 text-center">
             <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <img src="/logo-dental.png" alt="Logo" className="w-12 h-12 object-contain" />
@@ -76,6 +83,14 @@ export default function Login({ onLogin }) {
                         onChange={(e) => setPassword(e.target.value)}
                     />
                 </div>
+            </div>
+
+            {/* CHECKBOX "MANTENER SESIÓN" */}
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${rememberMe ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
+                    {rememberMe && <CheckSquare size={14} className="text-white" />}
+                </div>
+                <span className="text-sm text-gray-600 select-none">Mantener sesión iniciada</span>
             </div>
 
             <button 
