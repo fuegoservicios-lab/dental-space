@@ -78,7 +78,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
   const [editingAppointment, setEditingAppointment] = useState(null); 
   
   // ESTADO DEL FORMULARIO
-  // NOTA: Inicializamos source en 'manual' por defecto
   const [formData, setFormData] = useState({ 
     title: '', phone: '', service: '', start: '', status: 'Agendada', source: 'manual', doctor: '' 
   });
@@ -116,25 +115,21 @@ export default function DentalSpaceDashboard({ onLogout }) {
     } catch (error) {
       console.error("Error toggling bot:", error);
       setBotActive(!newState); 
-      alert("Error de conexión al cambiar estado del bot.");
+      // Sin alert aquí tampoco si falla la conexión rápida, solo log
+      console.error("Error de conexión al cambiar estado del bot.");
     }
   };
 
-  // --- 🚨 FUNCIÓN DE EMERGENCIA: RESET TOTAL ---
+  // --- 🚨 FUNCIÓN DE EMERGENCIA: RESET TOTAL (SILENCIOSA) ---
   const handleEmergencyReset = async () => {
-    if (!window.confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsta acción:\n1. Borrará la memoria de conversación de TODOS los usuarios activos.\n2. Desbloqueará al bot si se quedó 'pensando'.\n\nÚsalo solo si el Agente está fallando.")) {
-      return;
-    }
-
+    // SIN CONFIRMACIÓN Y SIN ALERTAS DE ÉXITO
     setLoading(true);
     try {
-        // 1. Borrar memoria de chats (LangChain)
         const { error: errorMemory } = await supabase
             .from('chat_memory')
             .delete()
             .neq('id', '00000000-0000-0000-0000-000000000000'); 
 
-        // 2. Resetear estados de sesión (Desbloquear is_processing)
         const { error: errorStates } = await supabase
             .from('session_states')
             .update({ is_processing: false, is_paused: false })
@@ -143,10 +138,12 @@ export default function DentalSpaceDashboard({ onLogout }) {
         if (errorMemory && errorMemory.code !== 'PGRST100') throw errorMemory;
         if (errorStates) throw errorStates;
 
-        alert("✅ SISTEMA REINICIADO.\n\nLa memoria del agente ha sido borrada y los procesos desbloqueados.");
+        console.log("✅ SISTEMA REINICIADO (Silencioso)");
+        // ELIMINADO: alert("✅ Memoria reiniciada correctamente.");
         
     } catch (error) {
         console.error("Error en reset:", error);
+        // Dejamos solo alerta si FALLA gravemente, para saber que no funcionó
         alert(`❌ Error al reiniciar: ${error.message}`);
     } finally {
         setLoading(false);
@@ -165,7 +162,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
         service: appointment.resource?.service || '',
         start: d.toISOString().slice(0, 16),
         status: appointment.resource?.status || 'Agendada',
-        source: appointment.resource?.source || 'manual', // Mantiene el origen si editamos
+        source: appointment.resource?.source || 'manual',
         doctor: appointment.resource?.doctor || '' 
       });
     } else {
@@ -176,7 +173,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
         title: '', phone: '', service: '', 
         start: `${now.toISOString().split('T')[0]}T09:00`, 
         status: 'Agendada', 
-        source: 'manual', // NUEVA CITA SIEMPRE MANUAL
+        source: 'manual', 
         doctor: '' 
       });
     }
@@ -191,7 +188,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
     const endDate = new Date(startDate.getTime() + 30 * 60000); 
     const actionType = editingAppointment ? 'update' : 'create';
     
-    // Preparar payload explícito
     const networkPayload = {
         action: actionType,
         data: { 
@@ -199,7 +195,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
             phone: formData.phone, 
             service: formData.service, 
             status: formData.status,
-            // AQUÍ FORZAMOS 'manual' SI ESTÁ VACÍO
             source: formData.source || 'manual', 
             start: startDate.toISOString(), 
             end: endDate.toISOString(), 
@@ -209,8 +204,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
         }
     };
     
-    console.log("Enviando a n8n:", networkPayload); // Debug para consola
-
     try {
         const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.CRUD}`, { 
             method: 'POST', headers: { 'Content-Type': 'application/json' }, 
@@ -222,10 +215,11 @@ export default function DentalSpaceDashboard({ onLogout }) {
     } catch (error) { console.error("Error saving:", error); alert("Error al guardar."); } finally { setLoading(false); }
   };
 
-  // --- API: CANCELAR/BORRAR ---
+  // --- API: CANCELAR (SILENCIOSA) ---
   const handleCancel = async (id) => {
     const apt = appointments.find(a => a.id === id);
-    if (!apt || !window.confirm('¿CANCELAR esta cita? Se eliminará de Google Calendar.')) return;
+    if (!apt) return;
+    
     setLoading(true);
     try {
         await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.CRUD}`, { 
@@ -236,8 +230,8 @@ export default function DentalSpaceDashboard({ onLogout }) {
     } catch (error) { console.error("Error canceling:", error); alert("No se pudo cancelar."); } finally { setLoading(false); }
   };
 
+  // --- API: HARD DELETE (SILENCIOSA) ---
   const handleHardDelete = async (id) => {
-    if (!window.confirm('⚠️ ¿Borrar DEFINITIVAMENTE? No se puede deshacer.')) return;
     setLoading(true);
     try {
         await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.CRUD}`, { 
@@ -288,7 +282,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                     <span className="hidden md:inline">Equipo</span>
                 </button>
 
-                {/* --- 🚨 BOTÓN DE EMERGENCIA --- */}
+                {/* --- BOTÓN DE EMERGENCIA --- */}
                 <button 
                     onClick={handleEmergencyReset}
                     className="flex items-center justify-center p-2 rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all shadow-sm"
@@ -457,7 +451,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         </div>
                       </td>
                       
-                      {/* --- CORRECCIÓN VISUALIZACIÓN SERVICIO LARGO --- */}
                       <td className="px-6 py-5">
                         <span className="inline-block text-sm font-medium text-slate-700 bg-slate-100/80 px-3 py-2 rounded-lg border border-slate-200 whitespace-normal leading-tight max-w-[180px]">
                             {apt.resource?.service || 'Consulta'}
@@ -477,7 +470,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
 
                       <td className="px-6 py-5 text-center"><StatusBadge status={apt.resource?.status} /></td>
                       
-                      {/* --- CORRECCIÓN ICONO ORIGEN MANUAL (MANO) --- */}
+                      {/* --- ICONO ORIGEN (PC) --- */}
                       <td className="px-6 py-5 text-center">
                          {apt.resource?.source === 'ai' ? (
                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-purple-100 text-purple-600 border border-purple-200 shadow-sm" title="Agendado por IA"><Bot size={18} /></div>
@@ -542,7 +535,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
 
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                    <div className="grid grid-cols-2 gap-4">
-                      {/* --- INPUT FECHA CON CAMBIO AUTOMÁTICO DE ESTADO --- */}
+                      {/* --- INPUT FECHA --- */}
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Fecha</label>
                         <input required type="date" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none font-medium transition-all" 
@@ -551,7 +544,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                             const newDate = e.target.value;
                             const currentTime = formData.start ? formData.start.split('T')[1]?.slice(0,5) : '09:00';
                             
-                            // LÓGICA: Si estoy editando, cambia a Reprogramada
                             setFormData(prev => ({
                                 ...prev, 
                                 start: `${newDate}T${currentTime}`,
@@ -561,7 +553,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         />
                       </div>
                       
-                      {/* --- INPUT HORA CON CAMBIO AUTOMÁTICO DE ESTADO --- */}
+                      {/* --- INPUT HORA --- */}
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Hora</label>
                         <select required className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none font-medium transition-all appearance-none"
@@ -570,7 +562,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                             const newTime = e.target.value;
                             const currentDate = formData.start ? formData.start.split('T')[0] : new Date().toISOString().split('T')[0];
                             
-                            // LÓGICA: Si estoy editando, cambia a Reprogramada
                             setFormData(prev => ({
                                 ...prev, 
                                 start: `${currentDate}T${newTime}`,
@@ -613,7 +604,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                       </select>
                    </div>
 
-                   {/* --- SELECTOR DE DOCTOR (TODOS VISIBLES PARA MANUAL) --- */}
+                   {/* --- SELECTOR DE DOCTOR --- */}
                    <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Especialista Asignado</label>
                       <select 
@@ -624,12 +615,9 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         <option value="">-- Sin asignar / Automático --</option>
                         <option value="Dra. Marisol">Dra. Marisol</option>
                         <option value="Dra. Yelissa Quezada">Dra. Yelissa Quezada</option>
-                        
-                        {/* Reactivados para selección manual */}
                         <option value="Dr. Jeffry Campusanos">Dr. Jeffry Campusanos</option>
                         <option value="Dr. Laureado Ortega">Dr. Laureado Ortega</option>
                         <option value="Dra. Pamela Paulino">Dra. Pamela Paulino</option>
-                        
                         <option value="Equipo Dental Space">Equipo Dental Space</option>
                       </select>
                    </div>
