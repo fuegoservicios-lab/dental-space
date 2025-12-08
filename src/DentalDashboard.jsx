@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   RefreshCw, Bot, Search, Plus, Edit2, Trash2, X, Phone,
-  FileText, Ban, Calendar, Clock, LogOut, Users, Stethoscope // <--- NUEVO IMPORT
+  FileText, Ban, Calendar, Clock, LogOut, Users, Stethoscope
 } from 'lucide-react';
 
 import DoctorsPanel from './DoctorsPanel';
@@ -75,7 +75,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
   const [isDoctorsOpen, setIsDoctorsOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null); 
   
-  // ESTADO DEL FORMULARIO (Incluye 'doctor')
+  // ESTADO DEL FORMULARIO
   const [formData, setFormData] = useState({ 
     title: '', 
     phone: '', 
@@ -83,7 +83,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
     start: '', 
     status: 'Agendada', 
     source: 'manual',
-    doctor: '' // <--- NUEVO CAMPO
+    doctor: '' 
   });
 
   // --- API: CARGAR DATOS ---
@@ -137,7 +137,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
         start: d.toISOString().slice(0, 16),
         status: appointment.resource?.status || 'Agendada',
         source: appointment.resource?.source || 'manual',
-        doctor: appointment.resource?.doctor || '' // <--- CARGAR DOCTOR AL EDITAR
+        doctor: appointment.resource?.doctor || '' 
       });
     } else {
       setEditingAppointment(null);
@@ -147,7 +147,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
         title: '', phone: '', service: '', 
         start: `${now.toISOString().split('T')[0]}T09:00`, 
         status: 'Agendada', source: 'manual',
-        doctor: '' // <--- DOCTOR VACÍO AL CREAR
+        doctor: '' 
       });
     }
     setIsModalOpen(true);
@@ -173,7 +173,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
             end: endDate.toISOString(), 
             id: editingAppointment?.id, 
             eventId: editingAppointment?.resource?.eventId,
-            doctor: formData.doctor // <--- ENVIAR DOCTOR A LA API
+            doctor: formData.doctor 
         }
     };
 
@@ -520,9 +520,10 @@ export default function DentalSpaceDashboard({ onLogout }) {
                       <select required className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none font-medium transition-all appearance-none" 
                         value={formData.service} onChange={e => setFormData({...formData, service: e.target.value})}>
                         <option value="" disabled>Selecciona servicio...</option>
-                        <optgroup label="Odontología General">
+                        <optgroup label="Odontología General y Restauradora">
                           <option value="Consulta odontológica general">Consulta General</option>
                           <option value="Profilaxis (limpieza dental)">Limpieza (Profilaxis)</option>
+                          <option value="Restauración (Resina/Empaste)">Restauración (Caries/Resina)</option>
                           <option value="Radiografías">Radiografías</option>
                         </optgroup>
                         <optgroup label="Ortodoncia">
