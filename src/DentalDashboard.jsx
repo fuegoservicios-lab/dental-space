@@ -3,11 +3,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   RefreshCw, Bot, Search, Plus, Edit2, Trash2, X, Phone,
   FileText, Ban, Calendar, Clock, LogOut, Users, Stethoscope,
-  ZapOff // <--- ICONO NUEVO IMPORTADO
+  ZapOff, Hand // <--- ICONO 'HAND' IMPORTADO
 } from 'lucide-react';
 
 import DoctorsPanel from './DoctorsPanel';
-import { supabase } from './supabaseClient'; // <--- IMPORTANTE: CLIENTE SUPABASE
+import { supabase } from './supabaseClient';
 
 // --- CONFIGURACIÓN ---
 const CONFIG = {
@@ -84,7 +84,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
 
   // --- API: CARGAR DATOS ---
   const fetchAppointments = useCallback(async () => {
-    // setLoading(true); // Opcional: Descomentar si quieres ver spinner en cada refresh
     try {
       const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.GET}`);
       if (!response.ok) throw new Error('Error al cargar datos');
@@ -129,7 +128,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
     setLoading(true);
     try {
         // 1. Borrar memoria de chats (LangChain)
-        // Usamos neq 0 para borrar todo de forma segura
         const { error: errorMemory } = await supabase
             .from('chat_memory')
             .delete()
@@ -283,7 +281,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                     <span className="hidden md:inline">Equipo</span>
                 </button>
 
-                {/* --- 🚨 BOTÓN DE EMERGENCIA (NUEVO) --- */}
+                {/* --- 🚨 BOTÓN DE EMERGENCIA --- */}
                 <button 
                     onClick={handleEmergencyReset}
                     className="flex items-center justify-center p-2 rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all shadow-sm"
@@ -443,8 +441,12 @@ export default function DentalSpaceDashboard({ onLogout }) {
                           <span className="text-sm text-slate-500 font-medium mt-0.5">{DateUtils.formatTime(apt.start)}</span>
                         </div>
                       </td>
+                      
+                      {/* --- CORRECCIÓN VISUALIZACIÓN SERVICIO LARGO --- */}
                       <td className="px-6 py-5">
-                        <span className="text-sm font-medium text-slate-700 bg-slate-100/80 px-3 py-1.5 rounded-lg border border-slate-200">{apt.resource?.service || 'Consulta'}</span>
+                        <span className="inline-block text-sm font-medium text-slate-700 bg-slate-100/80 px-3 py-2 rounded-lg border border-slate-200 whitespace-normal leading-tight max-w-[180px]">
+                            {apt.resource?.service || 'Consulta'}
+                        </span>
                       </td>
                       
                       <td className="px-6 py-5">
@@ -459,13 +461,18 @@ export default function DentalSpaceDashboard({ onLogout }) {
                       </td>
 
                       <td className="px-6 py-5 text-center"><StatusBadge status={apt.resource?.status} /></td>
+                      
+                      {/* --- CORRECCIÓN ICONO ORIGEN MANUAL --- */}
                       <td className="px-6 py-5 text-center">
                          {apt.resource?.source === 'ai' ? (
                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-purple-100 text-purple-600 border border-purple-200 shadow-sm" title="Agendado por IA"><Bot size={18} /></div>
                          ) : (
-                           <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-200">Manual</span>
+                           <div className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-amber-100 text-amber-700 border border-amber-200 shadow-sm" title="Agendado Manualmente">
+                               <Hand size={18} />
+                           </div>
                          )}
                       </td>
+
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
                           <button onClick={() => handleOpenModal(apt)} className="p-2 text-slate-500 hover:text-brand-600 hover:bg-brand-100 rounded-xl transition-colors" title="Editar"><Edit2 size={18} /></button>
@@ -527,10 +534,15 @@ export default function DentalSpaceDashboard({ onLogout }) {
                           onChange={e => {
                             const newDate = e.target.value;
                             const currentTime = formData.start ? formData.start.split('T')[1]?.slice(0,5) : '09:00';
-                            setFormData({...formData, start: `${newDate}T${currentTime}`});
+                            setFormData(prev => ({
+                                ...prev, 
+                                start: `${newDate}T${currentTime}`,
+                                status: editingAppointment ? 'Reprogramada' : prev.status 
+                            }));
                           }} 
                         />
                       </div>
+                      
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Hora</label>
                         <select required className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none font-medium transition-all appearance-none"
@@ -538,7 +550,11 @@ export default function DentalSpaceDashboard({ onLogout }) {
                           onChange={e => {
                             const newTime = e.target.value;
                             const currentDate = formData.start ? formData.start.split('T')[0] : new Date().toISOString().split('T')[0];
-                            setFormData({...formData, start: `${currentDate}T${newTime}`});
+                            setFormData(prev => ({
+                                ...prev, 
+                                start: `${currentDate}T${newTime}`,
+                                status: editingAppointment ? 'Reprogramada' : prev.status
+                            }));
                           }}
                         >
                           <option value="" disabled>--:--</option>
@@ -576,7 +592,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                       </select>
                    </div>
 
-                   {/* --- SELECTOR DE DOCTOR --- */}
                    <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Especialista Asignado</label>
                       <select 
@@ -587,9 +602,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         <option value="">-- Sin asignar / Automático --</option>
                         <option value="Dra. Marisol">Dra. Marisol</option>
                         <option value="Dra. Yelissa Quezada">Dra. Yelissa Quezada</option>
-                        <option value="Dr. Jeffry Campusanos">Dr. Jeffry Campusanos</option>
-                        <option value="Dr. Laureado Ortega">Dr. Laureado Ortega</option>
-                        <option value="Dra. Pamela Paulino">Dra. Pamela Paulino</option>
                         <option value="Equipo Dental Space">Equipo Dental Space</option>
                       </select>
                    </div>
