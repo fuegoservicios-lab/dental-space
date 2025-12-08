@@ -11,8 +11,8 @@ export default function Login({ onLogin }) {
   const [rememberMe, setRememberMe] = useState(true);
 
   // --- CREDENCIALES (Simuladas para MVP) ---
-  const ADMIN_EMAIL = "Yelissa_qv@hotmail.com";
-  const ADMIN_PASS = "dental2025"; 
+  const ADMIN_EMAIL = "yelissa_qv@hotmail.com";
+  const ADMIN_PASS = "dentalspace"; 
   // --------------------
 
   const handleSubmit = (e) => {
