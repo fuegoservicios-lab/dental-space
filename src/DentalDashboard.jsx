@@ -2,10 +2,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   RefreshCw, Bot, Search, Plus, Edit2, Trash2, X, Phone,
-  FileText, Ban, Calendar, Clock, LogOut, Users, Stethoscope
+  FileText, Ban, Calendar, Clock, LogOut, Users, Stethoscope,
+  ZapOff // <--- ICONO NUEVO IMPORTADO
 } from 'lucide-react';
 
 import DoctorsPanel from './DoctorsPanel';
+import { supabase } from './supabaseClient'; // <--- IMPORTANTE: CLIENTE SUPABASE
 
 // --- CONFIGURACIÓN ---
 const CONFIG = {
@@ -77,18 +79,12 @@ export default function DentalSpaceDashboard({ onLogout }) {
   
   // ESTADO DEL FORMULARIO
   const [formData, setFormData] = useState({ 
-    title: '', 
-    phone: '', 
-    service: '', 
-    start: '', 
-    status: 'Agendada', 
-    source: 'manual',
-    doctor: '' 
+    title: '', phone: '', service: '', start: '', status: 'Agendada', source: 'manual', doctor: '' 
   });
 
   // --- API: CARGAR DATOS ---
   const fetchAppointments = useCallback(async () => {
-    setLoading(true);
+    // setLoading(true); // Opcional: Descomentar si quieres ver spinner en cada refresh
     try {
       const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.GET}`);
       if (!response.ok) throw new Error('Error al cargar datos');
@@ -100,6 +96,12 @@ export default function DentalSpaceDashboard({ onLogout }) {
       if (typeof jsonResponse.botActive !== 'undefined') setBotActive(jsonResponse.botActive);
     } catch (error) { console.error("Error fetching:", error); } finally { setLoading(false); }
   }, []);
+
+  useEffect(() => {
+    fetchAppointments();
+    const interval = setInterval(fetchAppointments, 10000); 
+    return () => clearInterval(interval);
+  }, [fetchAppointments]);
 
   // --- API: CONTROL DEL BOT ---
   const toggleBot = async () => {
@@ -118,11 +120,39 @@ export default function DentalSpaceDashboard({ onLogout }) {
     }
   };
 
-  useEffect(() => {
-    fetchAppointments();
-    const interval = setInterval(fetchAppointments, 10000); 
-    return () => clearInterval(interval);
-  }, [fetchAppointments]);
+  // --- 🚨 FUNCIÓN DE EMERGENCIA: RESET TOTAL ---
+  const handleEmergencyReset = async () => {
+    if (!window.confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsta acción:\n1. Borrará la memoria de conversación de TODOS los usuarios activos.\n2. Desbloqueará al bot si se quedó 'pensando'.\n\nÚsalo solo si el Agente está fallando.")) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+        // 1. Borrar memoria de chats (LangChain)
+        // Usamos neq 0 para borrar todo de forma segura
+        const { error: errorMemory } = await supabase
+            .from('chat_memory')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000'); 
+
+        // 2. Resetear estados de sesión (Desbloquear is_processing)
+        const { error: errorStates } = await supabase
+            .from('session_states')
+            .update({ is_processing: false, is_paused: false })
+            .neq('session_id', 'xyz'); 
+
+        if (errorMemory && errorMemory.code !== 'PGRST100') throw errorMemory;
+        if (errorStates) throw errorStates;
+
+        alert("✅ SISTEMA REINICIADO.\n\nLa memoria del agente ha sido borrada y los procesos desbloqueados.");
+        
+    } catch (error) {
+        console.error("Error en reset:", error);
+        alert(`❌ Error al reiniciar: ${error.message}`);
+    } finally {
+        setLoading(false);
+    }
+  };
 
   // --- ABRIR MODAL (Formulario) ---
   const handleOpenModal = (appointment = null) => {
@@ -161,7 +191,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
     const endDate = new Date(startDate.getTime() + 30 * 60000); 
     const actionType = editingAppointment ? 'update' : 'create';
     
-    // Payload con el campo doctor incluido
     const networkPayload = {
         action: actionType,
         data: { 
@@ -225,7 +254,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
   return (
     <div className="min-h-screen bg-slate-50/50 flex flex-col font-sans text-slate-900 pb-20 md:pb-0">
       
-      {/* HEADER: Efecto cristal + Logo Circular */}
+      {/* HEADER */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 py-4 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -234,7 +263,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                 alt="Dental Space Logo" 
                 className="w-10 h-10 md:w-11 md:h-11 object-contain drop-shadow-sm rounded-full bg-white" 
               />
-              
               <div>
                   <h1 className="text-lg md:text-xl font-bold text-slate-800 leading-tight">Panel Admin</h1>
               </div>
@@ -245,7 +273,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                     <RefreshCw size={18} className={loading ? "animate-spin text-brand-600" : ""} />
                 </button>
                 
-                {/* --- BOTÓN EQUIPO --- */}
+                {/* BOTÓN EQUIPO */}
                 <button 
                     onClick={() => setIsDoctorsOpen(true)}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-all shadow-sm text-[10px] md:text-xs font-bold uppercase tracking-wider"
@@ -255,7 +283,17 @@ export default function DentalSpaceDashboard({ onLogout }) {
                     <span className="hidden md:inline">Equipo</span>
                 </button>
 
-                {/* --- BOTÓN IA --- */}
+                {/* --- 🚨 BOTÓN DE EMERGENCIA (NUEVO) --- */}
+                <button 
+                    onClick={handleEmergencyReset}
+                    className="flex items-center justify-center p-2 rounded-xl bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all shadow-sm"
+                    title="EMERGENCIA: Reiniciar Memoria del Bot"
+                >
+                    <ZapOff size={18} />
+                    <span className="hidden md:inline ml-2 text-xs font-bold uppercase">Reset</span>
+                </button>
+
+                {/* BOTÓN IA */}
                 <button 
                     onClick={toggleBot}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all shadow-sm
@@ -264,8 +302,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                     <div className={`w-2 h-2 rounded-full relative ${botActive ? 'bg-teal-500' : 'bg-rose-500'}`}>
                        {botActive && <div className="absolute inset-0 bg-teal-400 rounded-full animate-ping opacity-75"></div>}
                     </div>
-                    <span className="hidden md:inline">{botActive ? 'IA Activa' : 'IA Pausada'}</span>
-                    <span className="md:hidden">{botActive ? 'ON' : 'OFF'}</span>
+                    <span className="hidden md:inline">{botActive ? 'IA ON' : 'IA OFF'}</span>
                 </button>
 
                 <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block"></div>
@@ -309,7 +346,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
           {filteredAppointments.length > 0 ? (
             filteredAppointments.map((apt) => (
               <div key={apt.id} className="bg-white p-5 rounded-3xl shadow-card hover:shadow-card-hover transition-all border border-slate-100 relative overflow-hidden group">
-                {/* Línea lateral de color */}
                 <div className={`absolute left-0 top-0 bottom-0 w-1.5 
                     ${apt.resource?.status === 'Agendada' ? 'bg-teal-500' : 
                       apt.resource?.status === 'Reprogramada' ? 'bg-amber-500' : 
@@ -337,7 +373,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         <div className="flex items-center gap-3"><Clock size={16} className="text-brand-500/70"/><span className="font-medium">{DateUtils.formatTime(apt.start)}</span></div>
                         <div className="flex items-center gap-3"><FileText size={16} className="text-brand-500/70"/><span className="truncate font-medium">{apt.resource?.service || 'Consulta General'}</span></div>
                         
-                        {/* --- DOCTOR EN MOVIL --- */}
                         <div className="flex items-center gap-3">
                             <Stethoscope size={16} className="text-brand-500/70"/>
                             <span className="font-medium text-indigo-600">
@@ -379,9 +414,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider first:rounded-tl-3xl">Paciente</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha y Hora</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Servicio</th>
-                  {/* --- HEADER DOCTOR --- */}
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Especialista</th>
-                  
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Estado</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Origen</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right last:rounded-tr-3xl">Acciones</th>
@@ -414,7 +447,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         <span className="text-sm font-medium text-slate-700 bg-slate-100/80 px-3 py-1.5 rounded-lg border border-slate-200">{apt.resource?.service || 'Consulta'}</span>
                       </td>
                       
-                      {/* --- CELDA DOCTOR EN TABLA --- */}
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-2">
                             <div className="p-1.5 bg-indigo-50 text-indigo-500 rounded-lg">
