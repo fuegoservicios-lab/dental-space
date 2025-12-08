@@ -2,8 +2,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   RefreshCw, Bot, Search, Plus, Edit2, Trash2, X, Phone,
-  FileText, Ban, Calendar, Clock, LogOut
+  FileText, Ban, Calendar, Clock, LogOut, Users, Stethoscope // <--- NUEVO IMPORT
 } from 'lucide-react';
+
+import DoctorsPanel from './DoctorsPanel';
 
 // --- CONFIGURACIÓN ---
 const CONFIG = {
@@ -67,11 +69,21 @@ export default function DentalSpaceDashboard({ onLogout }) {
   const [botActive, setBotActive] = useState(true); 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all'); 
+  
+  // Estado para modales
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDoctorsOpen, setIsDoctorsOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null); 
   
+  // ESTADO DEL FORMULARIO (Incluye 'doctor')
   const [formData, setFormData] = useState({ 
-    title: '', phone: '', service: '', start: '', status: 'Agendada', source: 'manual' 
+    title: '', 
+    phone: '', 
+    service: '', 
+    start: '', 
+    status: 'Agendada', 
+    source: 'manual',
+    doctor: '' // <--- NUEVO CAMPO
   });
 
   // --- API: CARGAR DATOS ---
@@ -112,7 +124,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
     return () => clearInterval(interval);
   }, [fetchAppointments]);
 
-  // --- FORMULARIO (MODAL) ---
+  // --- ABRIR MODAL (Formulario) ---
   const handleOpenModal = (appointment = null) => {
     if (appointment) {
       setEditingAppointment(appointment);
@@ -124,7 +136,8 @@ export default function DentalSpaceDashboard({ onLogout }) {
         service: appointment.resource?.service || '',
         start: d.toISOString().slice(0, 16),
         status: appointment.resource?.status || 'Agendada',
-        source: appointment.resource?.source || 'manual'
+        source: appointment.resource?.source || 'manual',
+        doctor: appointment.resource?.doctor || '' // <--- CARGAR DOCTOR AL EDITAR
       });
     } else {
       setEditingAppointment(null);
@@ -133,13 +146,14 @@ export default function DentalSpaceDashboard({ onLogout }) {
       setFormData({ 
         title: '', phone: '', service: '', 
         start: `${now.toISOString().split('T')[0]}T09:00`, 
-        status: 'Agendada', source: 'manual' 
+        status: 'Agendada', source: 'manual',
+        doctor: '' // <--- DOCTOR VACÍO AL CREAR
       });
     }
     setIsModalOpen(true);
   };
 
-  // --- API: GUARDAR ---
+  // --- API: GUARDAR (Crear/Editar) ---
   const handleSave = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -147,12 +161,19 @@ export default function DentalSpaceDashboard({ onLogout }) {
     const endDate = new Date(startDate.getTime() + 30 * 60000); 
     const actionType = editingAppointment ? 'update' : 'create';
     
+    // Payload con el campo doctor incluido
     const networkPayload = {
         action: actionType,
         data: { 
-            title: formData.title, phone: formData.phone, service: formData.service, 
-            status: formData.status, start: startDate.toISOString(), end: endDate.toISOString(), 
-            id: editingAppointment?.id, eventId: editingAppointment?.resource?.eventId 
+            title: formData.title, 
+            phone: formData.phone, 
+            service: formData.service, 
+            status: formData.status, 
+            start: startDate.toISOString(), 
+            end: endDate.toISOString(), 
+            id: editingAppointment?.id, 
+            eventId: editingAppointment?.resource?.eventId,
+            doctor: formData.doctor // <--- ENVIAR DOCTOR A LA API
         }
     };
 
@@ -208,7 +229,6 @@ export default function DentalSpaceDashboard({ onLogout }) {
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 py-4 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {/* --- CORRECCIÓN VISUAL: Logo perfectamente redondo --- */}
               <img 
                 src="/logo-dental.png" 
                 alt="Dental Space Logo" 
@@ -225,6 +245,17 @@ export default function DentalSpaceDashboard({ onLogout }) {
                     <RefreshCw size={18} className={loading ? "animate-spin text-brand-600" : ""} />
                 </button>
                 
+                {/* --- BOTÓN EQUIPO --- */}
+                <button 
+                    onClick={() => setIsDoctorsOpen(true)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-all shadow-sm text-[10px] md:text-xs font-bold uppercase tracking-wider"
+                    title="Gestionar Doctores"
+                >
+                    <Users size={16} />
+                    <span className="hidden md:inline">Equipo</span>
+                </button>
+
+                {/* --- BOTÓN IA --- */}
                 <button 
                     onClick={toggleBot}
                     className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] md:text-xs font-bold uppercase tracking-wider transition-all shadow-sm
@@ -305,6 +336,15 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         <div className="flex items-center gap-3"><Calendar size={16} className="text-brand-500/70"/><span className="font-semibold text-slate-700 capitalize">{DateUtils.formatDate(apt.start)}</span></div>
                         <div className="flex items-center gap-3"><Clock size={16} className="text-brand-500/70"/><span className="font-medium">{DateUtils.formatTime(apt.start)}</span></div>
                         <div className="flex items-center gap-3"><FileText size={16} className="text-brand-500/70"/><span className="truncate font-medium">{apt.resource?.service || 'Consulta General'}</span></div>
+                        
+                        {/* --- DOCTOR EN MOVIL --- */}
+                        <div className="flex items-center gap-3">
+                            <Stethoscope size={16} className="text-brand-500/70"/>
+                            <span className="font-medium text-indigo-600">
+                                {apt.resource?.doctor || 'Sin asignar'}
+                            </span>
+                        </div>
+                        
                         <div className="flex items-center gap-3"><Phone size={16} className="text-brand-500/70"/><span className="font-medium font-mono text-slate-700">{apt.resource?.phone || 'N/A'}</span></div>
                     </div>
 
@@ -339,6 +379,9 @@ export default function DentalSpaceDashboard({ onLogout }) {
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider first:rounded-tl-3xl">Paciente</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha y Hora</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Servicio</th>
+                  {/* --- HEADER DOCTOR --- */}
+                  <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Especialista</th>
+                  
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Estado</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">Origen</th>
                   <th className="px-6 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right last:rounded-tr-3xl">Acciones</th>
@@ -370,6 +413,19 @@ export default function DentalSpaceDashboard({ onLogout }) {
                       <td className="px-6 py-5">
                         <span className="text-sm font-medium text-slate-700 bg-slate-100/80 px-3 py-1.5 rounded-lg border border-slate-200">{apt.resource?.service || 'Consulta'}</span>
                       </td>
+                      
+                      {/* --- CELDA DOCTOR EN TABLA --- */}
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-indigo-50 text-indigo-500 rounded-lg">
+                                <Stethoscope size={14} />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-700 truncate max-w-[140px]" title={apt.resource?.doctor}>
+                                {apt.resource?.doctor || 'Sin asignar'}
+                            </span>
+                        </div>
+                      </td>
+
                       <td className="px-6 py-5 text-center"><StatusBadge status={apt.resource?.status} /></td>
                       <td className="px-6 py-5 text-center">
                          {apt.resource?.source === 'ai' ? (
@@ -391,7 +447,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="6"><EmptyState /></td></tr>
+                  <tr><td colSpan="7"><EmptyState /></td></tr>
                 )}
               </tbody>
             </table>
@@ -399,7 +455,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
         </div>
       </main>
 
-      {/* MODAL */}
+      {/* MODAL CITA (FORMULARIO) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 transition-all flex flex-col max-h-[90vh] md:max-h-[85vh] animate-in slide-in-from-bottom-10 md:slide-in-from-center duration-300 border border-slate-200">
@@ -486,6 +542,25 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         </optgroup>
                       </select>
                    </div>
+
+                   {/* --- SELECTOR DE DOCTOR --- */}
+                   <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Especialista Asignado</label>
+                      <select 
+                        className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none font-medium transition-all appearance-none" 
+                        value={formData.doctor} 
+                        onChange={e => setFormData({...formData, doctor: e.target.value})}
+                      >
+                        <option value="">-- Sin asignar / Automático --</option>
+                        <option value="Dra. Marisol">Dra. Marisol</option>
+                        <option value="Dra. Yelissa Quezada">Dra. Yelissa Quezada</option>
+                        <option value="Dr. Jeffry Campusanos">Dr. Jeffry Campusanos</option>
+                        <option value="Dr. Laureado Ortega">Dr. Laureado Ortega</option>
+                        <option value="Dra. Pamela Paulino">Dra. Pamela Paulino</option>
+                        <option value="Equipo Dental Space">Equipo Dental Space</option>
+                      </select>
+                   </div>
+
                 </div>
               </div>
               
@@ -499,6 +574,12 @@ export default function DentalSpaceDashboard({ onLogout }) {
           </div>
         </div>
       )}
+
+      {/* --- RENDERIZAR PANEL DE DOCTORES --- */}
+      {isDoctorsOpen && (
+        <DoctorsPanel onClose={() => setIsDoctorsOpen(false)} />
+      )}
+
     </div>
   );
 }
