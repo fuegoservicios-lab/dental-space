@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   RefreshCw, Bot, Search, Plus, Edit2, Trash2, X, Phone,
   FileText, Ban, Calendar, Clock, LogOut, Users, Stethoscope,
-  ZapOff, Hand // <--- ICONO 'HAND' IMPORTADO
+  ZapOff, Hand 
 } from 'lucide-react';
 
 import DoctorsPanel from './DoctorsPanel';
@@ -78,6 +78,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
   const [editingAppointment, setEditingAppointment] = useState(null); 
   
   // ESTADO DEL FORMULARIO
+  // NOTA: Inicializamos source en 'manual' por defecto
   const [formData, setFormData] = useState({ 
     title: '', phone: '', service: '', start: '', status: 'Agendada', source: 'manual', doctor: '' 
   });
@@ -164,7 +165,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
         service: appointment.resource?.service || '',
         start: d.toISOString().slice(0, 16),
         status: appointment.resource?.status || 'Agendada',
-        source: appointment.resource?.source || 'manual',
+        source: appointment.resource?.source || 'manual', // Mantiene el origen si editamos
         doctor: appointment.resource?.doctor || '' 
       });
     } else {
@@ -174,7 +175,8 @@ export default function DentalSpaceDashboard({ onLogout }) {
       setFormData({ 
         title: '', phone: '', service: '', 
         start: `${now.toISOString().split('T')[0]}T09:00`, 
-        status: 'Agendada', source: 'manual',
+        status: 'Agendada', 
+        source: 'manual', // NUEVA CITA SIEMPRE MANUAL
         doctor: '' 
       });
     }
@@ -189,13 +191,16 @@ export default function DentalSpaceDashboard({ onLogout }) {
     const endDate = new Date(startDate.getTime() + 30 * 60000); 
     const actionType = editingAppointment ? 'update' : 'create';
     
+    // Preparar payload explícito
     const networkPayload = {
         action: actionType,
         data: { 
             title: formData.title, 
             phone: formData.phone, 
             service: formData.service, 
-            status: formData.status, 
+            status: formData.status,
+            // AQUÍ FORZAMOS 'manual' SI ESTÁ VACÍO
+            source: formData.source || 'manual', 
             start: startDate.toISOString(), 
             end: endDate.toISOString(), 
             id: editingAppointment?.id, 
@@ -203,6 +208,8 @@ export default function DentalSpaceDashboard({ onLogout }) {
             doctor: formData.doctor 
         }
     };
+    
+    console.log("Enviando a n8n:", networkPayload); // Debug para consola
 
     try {
         const response = await fetch(`${CONFIG.API_BASE_URL}${CONFIG.ENDPOINTS.CRUD}`, { 
@@ -361,8 +368,16 @@ export default function DentalSpaceDashboard({ onLogout }) {
                             <div className="mt-1"><StatusBadge status={apt.resource?.status} /></div>
                         </div>
                     </div>
-                    {apt.resource?.source === 'ai' && (
-                        <div className="bg-purple-50 p-1.5 rounded-lg text-purple-600 border border-purple-100 shadow-sm"><Bot size={18} /></div>
+                    
+                    {/* --- INDICADOR ORIGEN (IA vs MANUAL) --- */}
+                    {apt.resource?.source === 'ai' ? (
+                        <div className="bg-purple-50 p-1.5 rounded-lg text-purple-600 border border-purple-100 shadow-sm">
+                            <Bot size={18} />
+                        </div>
+                    ) : (
+                        <div className="bg-amber-50 p-1.5 rounded-lg text-amber-600 border border-amber-100 shadow-sm">
+                            <Hand size={18} />
+                        </div>
                     )}
                     </div>
 
@@ -462,7 +477,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
 
                       <td className="px-6 py-5 text-center"><StatusBadge status={apt.resource?.status} /></td>
                       
-                      {/* --- CORRECCIÓN ICONO ORIGEN MANUAL --- */}
+                      {/* --- CORRECCIÓN ICONO ORIGEN MANUAL (MANO) --- */}
                       <td className="px-6 py-5 text-center">
                          {apt.resource?.source === 'ai' ? (
                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-purple-100 text-purple-600 border border-purple-200 shadow-sm" title="Agendado por IA"><Bot size={18} /></div>
@@ -527,6 +542,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
 
                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                    <div className="grid grid-cols-2 gap-4">
+                      {/* --- INPUT FECHA CON CAMBIO AUTOMÁTICO DE ESTADO --- */}
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Fecha</label>
                         <input required type="date" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none font-medium transition-all" 
@@ -534,6 +550,8 @@ export default function DentalSpaceDashboard({ onLogout }) {
                           onChange={e => {
                             const newDate = e.target.value;
                             const currentTime = formData.start ? formData.start.split('T')[1]?.slice(0,5) : '09:00';
+                            
+                            // LÓGICA: Si estoy editando, cambia a Reprogramada
                             setFormData(prev => ({
                                 ...prev, 
                                 start: `${newDate}T${currentTime}`,
@@ -543,6 +561,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         />
                       </div>
                       
+                      {/* --- INPUT HORA CON CAMBIO AUTOMÁTICO DE ESTADO --- */}
                       <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Hora</label>
                         <select required className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none font-medium transition-all appearance-none"
@@ -550,6 +569,8 @@ export default function DentalSpaceDashboard({ onLogout }) {
                           onChange={e => {
                             const newTime = e.target.value;
                             const currentDate = formData.start ? formData.start.split('T')[0] : new Date().toISOString().split('T')[0];
+                            
+                            // LÓGICA: Si estoy editando, cambia a Reprogramada
                             setFormData(prev => ({
                                 ...prev, 
                                 start: `${currentDate}T${newTime}`,
@@ -576,7 +597,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         </optgroup>
                         <optgroup label="Ortodoncia">
                           <option value="Ortodoncia (brackets)">Ortodoncia (Brackets)</option>
-                          <option value="Activación de brackets">Activación de Brackets</option>
+                          <option value="Activación de brackets">Activación de brackets</option>
                         </optgroup>
                         <optgroup label="Estética y Prótesis">
                           <option value="Blanqueamiento dental">Blanqueamiento Dental</option>
@@ -592,6 +613,7 @@ export default function DentalSpaceDashboard({ onLogout }) {
                       </select>
                    </div>
 
+                   {/* --- SELECTOR DE DOCTOR (TODOS VISIBLES PARA MANUAL) --- */}
                    <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5 ml-1">Especialista Asignado</label>
                       <select 
@@ -602,6 +624,12 @@ export default function DentalSpaceDashboard({ onLogout }) {
                         <option value="">-- Sin asignar / Automático --</option>
                         <option value="Dra. Marisol">Dra. Marisol</option>
                         <option value="Dra. Yelissa Quezada">Dra. Yelissa Quezada</option>
+                        
+                        {/* Reactivados para selección manual */}
+                        <option value="Dr. Jeffry Campusanos">Dr. Jeffry Campusanos</option>
+                        <option value="Dr. Laureado Ortega">Dr. Laureado Ortega</option>
+                        <option value="Dra. Pamela Paulino">Dra. Pamela Paulino</option>
+                        
                         <option value="Equipo Dental Space">Equipo Dental Space</option>
                       </select>
                    </div>
