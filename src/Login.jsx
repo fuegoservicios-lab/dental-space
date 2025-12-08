@@ -10,10 +10,10 @@ export default function Login({ onLogin }) {
   // Estado para "Recordarme" (marcado por defecto para mejor UX)
   const [rememberMe, setRememberMe] = useState(true);
 
-  // --- CREDENCIALES (Simuladas para MVP) ---
+  // --- CREDENCIALES ACTUALIZADAS ---
   const ADMIN_EMAIL = "yelissa_qv@hotmail.com";
   const ADMIN_PASS = "dentalspace"; 
-  // --------------------
+  // ---------------------------------
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -33,7 +33,7 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    // Fondo general con un degradado sutil (Sintaxis Tailwind v4: bg-linear-to-br)
+    // Fondo general con un degradado sutil
     <div className="min-h-screen bg-linear-to-br from-slate-50 to-brand-50 flex items-center justify-center p-4 font-sans">
       
       {/* Tarjeta de Login */}
@@ -45,7 +45,7 @@ export default function Login({ onLogin }) {
             {/* Elemento decorativo de fondo */}
             <div className="absolute top-0 left-0 w-full h-full bg-white opacity-5 transform -skew-y-6 scale-150 origin-top-left"></div>
 
-            {/* --- CORRECCIÓN LOGO: rounded-full + overflow-hidden --- */}
+            {/* Logo */}
             <div className="bg-white/95 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg backdrop-blur-sm relative z-10 p-4 overflow-hidden">
                 <img src="/logo-dental.png" alt="Logo Dental Space" className="w-full h-full object-contain" />
             </div>
@@ -106,7 +106,7 @@ export default function Login({ onLogin }) {
                 <span className="text-sm font-medium text-slate-600 group-hover:text-slate-800 transition-colors">Mantener sesión iniciada</span>
             </div>
 
-            {/* Botón de Submit - Color ACCENT (Rosado) */}
+            {/* Botón de Submit */}
             <button 
                 type="submit" 
                 className="w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-accent-500/30 hover:shadow-accent-500/50 flex items-center justify-center gap-2 active:scale-[0.98] text-lg mt-2"
