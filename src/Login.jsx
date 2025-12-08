@@ -11,7 +11,7 @@ export default function Login({ onLogin }) {
   const [rememberMe, setRememberMe] = useState(true);
 
   // --- CREDENCIALES (Simuladas para MVP) ---
-  const ADMIN_EMAIL = "admin@dentalspace.com";
+  const ADMIN_EMAIL = "Yelissa_qv@hotmail.com";
   const ADMIN_PASS = "dental2025"; 
   // --------------------
 
